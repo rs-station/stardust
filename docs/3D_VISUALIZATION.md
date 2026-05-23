@@ -1,6 +1,6 @@
 # 3D Structure Visualization in Weights & Biases
 
-LossLab automatically logs interactive 3D protein structures to your Weights & Biases dashboard during refinement.
+Stardust automatically logs interactive 3D protein structures to your Weights & Biases dashboard during refinement.
 
 ## Features
 
@@ -19,7 +19,7 @@ At the end of refinement, an animated 3D viewer is logged (HTML + 3Dmol.js) so y
 Simply enable W&B logging in your refinement config:
 
 ```python
-from losslab import RefinementConfig, RefinementEngine
+from stardust import RefinementConfig, RefinementEngine
 
 config = RefinementConfig(
     # ... other parameters ...
@@ -104,7 +104,7 @@ In your W&B dashboard, you'll see:
 
 ## If W&B Is Disabled
 
-If `use_wandb=False`, LossLab does not stream live frames or create the
+If `use_wandb=False`, Stardust does not stream live frames or create the
 embedded animation viewer. You will still get local outputs when trajectory
 saving is enabled:
 

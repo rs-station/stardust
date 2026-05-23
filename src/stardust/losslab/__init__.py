@@ -1,5 +1,5 @@
-"""Loss functions module for coordinate refinement."""
+"""Loss functions for coordinate refinement."""
 
-from losslab.losses.mse import MSECoordinatesLoss
+from stardust.losslab.mse import MSECoordinatesLoss
 
 __all__ = ["MSECoordinatesLoss"]

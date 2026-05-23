@@ -1,9 +1,9 @@
-"""Refinement module for coordinate optimization."""
+"""Refinement engine, logging, and checkpointing."""
 
-from losslab.refinement.checkpoint import CheckpointManager
-from losslab.refinement.config import RefinementConfig
-from losslab.refinement.engine import RefinementEngine
-from losslab.refinement.metrics import MetricsTracker
+from stardust.refinementlogger.checkpoint import CheckpointManager
+from stardust.refinementlogger.config import RefinementConfig
+from stardust.refinementlogger.engine import RefinementEngine
+from stardust.refinementlogger.metrics import MetricsTracker
 
 __all__ = [
     "RefinementEngine",

@@ -8,7 +8,7 @@ from typing import Protocol
 import torch
 from SFC_Torch.Fmodel import SFcalculator
 
-from losslab.losses.settings import DEFAULT_TORCH_DEVICE
+from stardust.losslab.settings import DEFAULT_TORCH_DEVICE
 
 
 class ValidLoss(Protocol):

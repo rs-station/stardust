@@ -1,7 +1,7 @@
-"""LossLab: Modular coordinate refinement library."""
+"""Stardust: Modular coordinate refinement library."""
 
-from losslab.refinement.config import RefinementConfig
-from losslab.refinement.engine import RefinementEngine
+from stardust.refinementlogger.config import RefinementConfig
+from stardust.refinementlogger.engine import RefinementEngine
 
 __version__ = "0.1.0"
 

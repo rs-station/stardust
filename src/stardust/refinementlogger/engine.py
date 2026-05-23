@@ -10,14 +10,14 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from losslab.losses.base import BaseLoss
-from losslab.refinement.checkpoint import CheckpointManager
-from losslab.refinement.config import RefinementConfig
-from losslab.refinement.metrics import MetricsTracker
-from losslab.refinement.trajectory import TrajectoryWriter
-from losslab.refinement.wandb_logger import WandbLogger
-from losslab.utils.decorators import gpu_memory_tracked, timed
-from losslab.utils.geometry import kabsch_align
+from stardust.losslab.base import BaseLoss
+from stardust.refinementlogger.checkpoint import CheckpointManager
+from stardust.refinementlogger.config import RefinementConfig
+from stardust.refinementlogger.metrics import MetricsTracker
+from stardust.refinementlogger.trajectory import TrajectoryWriter
+from stardust.refinementlogger.wandb_logger import WandbLogger
+from stardust.utils.decorators import gpu_memory_tracked, timed
+from stardust.utils.geometry import kabsch_align
 
 
 class EarlyStopper:
