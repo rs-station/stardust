@@ -4,24 +4,12 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Any
 
+import mdtraj as md
 import numpy as np
 import torch
 from loguru import logger
-
-# Optional import for mdtraj
-try:
-    import mdtraj as md
-    from mdtraj.formats import PDBTrajectoryFile
-
-    MDTRAJ_AVAILABLE = True
-    logger.info(f"mdtraj successfully imported, version: {md.__version__}")
-except ImportError as e:
-    MDTRAJ_AVAILABLE = False
-    md = None
-    PDBTrajectoryFile = None
-    logger.warning(f"mdtraj import failed: {e}")
+from mdtraj.formats import PDBTrajectoryFile
 
 
 class TrajectoryWriter:
@@ -31,146 +19,95 @@ class TrajectoryWriter:
         self,
         output_dir: Path,
         pdb_template_path: str | Path,
-        save_interval: int = 10,
+        save_interval: int = 10,  # noqa: ARG002 - kept for API compatibility
         wandb_logger=None,
     ):
         """Initialize trajectory writer.
 
         Args:
-            output_dir: Output directory
-            pdb_template_path: Path to PDB template file
-            save_interval: Save interval for individual frames (not used with streaming)
-            wandb_logger: Optional WandbLogger for real-time streaming
+            output_dir: Output directory; a `trajectory/` subdir is created here.
+            pdb_template_path: Path to PDB template defining topology and atom count.
+            save_interval: Retained for API compatibility; frames are written on every
+                `save_frame` call.
+            wandb_logger: Optional WandbLogger for real-time per-frame streaming.
         """
         self.output_dir = Path(output_dir) / "trajectory"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.pdb_template_path = Path(pdb_template_path)
-        self.save_interval = save_interval
         self.wandb_logger = wandb_logger
+        self.traj_writers: dict[str, PDBTrajectoryFile] = {}
 
-        # Track writers per run_id
-        self.traj_writers: dict[str, Any] = {}
-        self.mdtraj_template = None
-        self.topology = None
+        self.mdtraj_template = md.load_pdb(str(self.pdb_template_path))
+        self.topology = self.mdtraj_template.topology
+        logger.info(
+            f"TrajectoryWriter loaded {self.pdb_template_path} "
+            f"({self.topology.n_atoms} atoms, {self.topology.n_residues} residues)"
+        )
 
-        logger.info("TrajectoryWriter initialization:")
-        logger.info(f"  MDTRAJ_AVAILABLE: {MDTRAJ_AVAILABLE}")
-        logger.info(f"  pdb_template_path: {self.pdb_template_path}")
-        logger.info(f"  output_dir: {self.output_dir}")
+    @staticmethod
+    def _to_numpy(x: torch.Tensor | np.ndarray) -> np.ndarray:
+        return x.detach().cpu().numpy() if isinstance(x, torch.Tensor) else x
 
-        # Load mdtraj template
-        if MDTRAJ_AVAILABLE:
-            if not self.pdb_template_path.exists():
-                logger.error(f"PDB template file not found: {self.pdb_template_path}")
-                return
-
-            try:
-                logger.info(
-                    f"📂 Loading mdtraj template from: {self.pdb_template_path}"
-                )
-                self.mdtraj_template = md.load_pdb(str(self.pdb_template_path))
-                self.topology = self.mdtraj_template.topology
-                n_atoms = self.mdtraj_template.n_atoms
-                logger.info(f"✓ Successfully loaded template with {n_atoms} atoms")
-                logger.info(f"  Number of residues: {self.topology.n_residues}")
-            except Exception as e:
-                logger.error(f"✗ Failed to load PDB template: {e}")
-                logger.exception(e)
-                self.mdtraj_template = None
-                self.topology = None
-        else:
-            logger.warning("mdtraj not available - trajectory saving disabled")
+    def _check_atom_count(self, coordinates: np.ndarray, context: str) -> bool:
+        n_coords, n_template = coordinates.shape[0], self.topology.n_atoms
+        if n_coords != n_template:
+            logger.error(
+                f"Atom count mismatch in {context}: "
+                f"coordinates have {n_coords}, template has {n_template}"
+            )
+            return False
+        return True
 
     def save_frame(
         self,
         coordinates: torch.Tensor | np.ndarray,
         iteration: int,
         run_id: str,
-        b_factors: torch.Tensor | np.ndarray | None = None,
-        loss: float | None = None,
+        b_factors: torch.Tensor | np.ndarray | None = None,  # noqa: ARG002
+        loss: float | None = None,  # noqa: ARG002
     ) -> None:
-        """Save a single frame to trajectory file.
-
-        Args:
-            coordinates: Atomic coordinates [N, 3] in Angstroms
-            iteration: Current iteration number
-            run_id: Current run identifier
-            b_factors: Optional B-factors [N] (not used currently)
-            loss: Optional loss value (not used currently)
-        """
-        if not MDTRAJ_AVAILABLE or self.topology is None:
-            logger.debug("mdtraj not available, skipping frame save")
+        """Append a frame (in Angstroms) to the trajectory file for ``run_id``."""
+        coords = self._to_numpy(coordinates).reshape(-1, 3)
+        if not self._check_atom_count(coords, "save_frame"):
             return
 
-        # Convert to numpy
-        if isinstance(coordinates, torch.Tensor):
-            coordinates = coordinates.detach().cpu().numpy()
-
-        # Validate atom count matches template
-        n_coords = coordinates.shape[0]
-        n_template = self.topology.n_atoms
-
-        if n_coords != n_template:
-            logger.error(
-                f"❌ ATOM COUNT MISMATCH: coordinates have {n_coords} atoms, "
-                f"but template has {n_template} atoms."
-            )
-            return
-
-        # Initialize writer for this run_id if not exists
         if run_id not in self.traj_writers:
             traj_path = self.output_dir / f"{run_id}_refinement_trajectory.pdb"
-            try:
-                self.traj_writers[run_id] = PDBTrajectoryFile(str(traj_path), mode="w")
-                logger.info(f"✓ Opened trajectory file: {traj_path}")
-            except Exception as e:
-                logger.error(f"Failed to open trajectory writer: {e}")
-                return
+            self.traj_writers[run_id] = PDBTrajectoryFile(str(traj_path), mode="w")
+            logger.info(f"Opened trajectory file: {traj_path}")
 
         writer = self.traj_writers[run_id]
+        writer.write(coords, self.topology, modelIndex=iteration)
 
-        # Write frame (PDBTrajectoryFile expects Angstroms, not nm)
+        # PDBTrajectoryFile buffers writes; flush so partial trajectories are tailable.
+        if hasattr(writer, "_file") and hasattr(writer._file, "flush"):
+            writer._file.flush()
+
+        if self.wandb_logger is not None:
+            self._stream_frame_to_wandb(coords, iteration, run_id)
+
+    def _stream_frame_to_wandb(
+        self, coords: np.ndarray, iteration: int, run_id: str
+    ) -> None:
+        """Log a single frame to wandb as a Molecule. Best-effort; never raises."""
         try:
-            coords_angstrom = coordinates.reshape(-1, 3)
-            writer.write(coords_angstrom, self.topology, modelIndex=iteration)
+            import wandb  # local import keeps wandb an optional dependency
+        except ImportError:
+            return
 
-            # Flush to ensure data is written immediately
-            if hasattr(writer, "_file") and hasattr(writer._file, "flush"):
-                writer._file.flush()
-
-            logger.debug(f"✓ Saved frame for run {run_id}, iteration {iteration}")
-
-            # Real-time wandb logging
-            if self.wandb_logger is not None and MDTRAJ_AVAILABLE:
-                try:
-                    # Create temp single-frame PDB for wandb
-                    temp_frame_path = self.output_dir / f"_temp_{run_id}_frame.pdb"
-                    coords_nm = (
-                        coordinates.reshape(1, -1, 3) / 10.0
-                    )  # mdtraj uses nm internally
-                    temp_traj = md.Trajectory(coords_nm, self.topology)
-                    temp_traj.save_pdb(str(temp_frame_path))
-
-                    # Log to wandb
-                    import wandb
-
-                    wandb.log({
-                        f"trajectory_{run_id}_live": wandb.Molecule(
-                            str(temp_frame_path)
-                        ),
-                        "iteration": iteration,
-                    })
-
-                    # Clean up
-                    temp_frame_path.unlink()
-                except Exception as wandb_err:
-                    logger.debug(f"Could not stream frame to wandb: {wandb_err}")
-                    logger.debug(f"Could not stream frame to wandb: {wandb_err}")
-
+        temp_path = self.output_dir / f"_temp_{run_id}_frame.pdb"
+        try:
+            coords_nm = coords.reshape(1, -1, 3) / 10.0  # mdtraj uses nm
+            md.Trajectory(coords_nm, self.topology).save_pdb(str(temp_path))
+            wandb.log({
+                f"trajectory_{run_id}_live": wandb.Molecule(str(temp_path)),
+                "iteration": iteration,
+            })
         except Exception as e:
-            logger.error(f"Failed to write trajectory frame: {e}")
-            logger.exception(e)
+            logger.debug(f"Could not stream frame to wandb: {e}")
+        finally:
+            temp_path.unlink(missing_ok=True)
 
     def save_best(
         self,
@@ -179,82 +116,32 @@ class TrajectoryWriter:
         iteration: int,
         b_factors: np.ndarray | torch.Tensor | None = None,
     ) -> None:
-        """Save a single best structure as a PDB file.
-
-        Args:
-            coordinates: Atomic coordinates in Angstroms, shape (n_atoms, 3)
-            run_id: Unique identifier for this refinement run
-            iteration: Iteration number when this best was found
-            b_factors: Optional B-factors to write to PDB file
-        """
-        if not MDTRAJ_AVAILABLE or self.topology is None:
-            logger.debug("mdtraj not available, skipping best PDB save")
+        """Save a single best-so-far structure as a standalone PDB."""
+        coords = self._to_numpy(coordinates).reshape(-1, 3)
+        if not self._check_atom_count(coords, "save_best"):
             return
 
-        # Convert torch tensor to numpy if needed
-        if isinstance(coordinates, torch.Tensor):
-            coordinates = coordinates.detach().cpu().numpy()
-
-        # Validate atom count matches template
-        n_coords = coordinates.shape[0]
-        n_template = self.topology.n_atoms
-
-        if n_coords != n_template:
-            logger.error(
-                "❌ ATOM COUNT MISMATCH for best PDB: coordinates have %s "
-                "atoms, but template has %s atoms.",
-                n_coords,
-                n_template,
-            )
-            return
-
-        # Create output path
         best_path = self.output_dir / f"checkpoint_{run_id}_iter{iteration}.pdb"
+        coords_nm = coords.reshape(1, -1, 3) / 10.0  # mdtraj uses nm
+        traj = md.Trajectory(coords_nm, self.topology)
 
-        try:
-            # Convert coordinates to nm (mdtraj uses nm)
-            coords_nm = coordinates.reshape(1, -1, 3) / 10.0  # Shape: (1, n_atoms, 3)
+        if b_factors is not None:
+            traj.bfactors = self._to_numpy(b_factors).reshape(-1, 1)
 
-            # Create a single-frame trajectory
-            traj = md.Trajectory(coords_nm, self.topology)
-
-            # Set B-factors if provided
-            if b_factors is not None:
-                if isinstance(b_factors, torch.Tensor):
-                    b_factors = b_factors.detach().cpu().numpy()
-                traj.bfactors = b_factors.reshape(-1, 1)  # Shape: (n_atoms, 1)
-
-            # Save to PDB
-            traj.save_pdb(str(best_path))
-
-        except Exception as e:
-            logger.error(f"Failed to save best PDB: {e}")
-            logger.exception(e)
+        traj.save_pdb(str(best_path))
 
     def close(self, run_id: str | None = None) -> None:
-        """Close trajectory writer(s).
-
-        Args:
-            run_id: Specific run to close, or None to close all
-        """
-        if run_id is not None:
-            if run_id in self.traj_writers:
-                try:
-                    self.traj_writers[run_id].close()
-                    logger.info(f"✓ Closed trajectory writer for run {run_id}")
-                except Exception as e:
-                    logger.warning(f"Error closing trajectory writer for {run_id}: {e}")
-                finally:
-                    del self.traj_writers[run_id]
-        else:
-            # Close all writers
-            for rid, writer in list(self.traj_writers.items()):
-                try:
-                    writer.close()
-                    logger.info(f"✓ Closed trajectory writer for run {rid}")
-                except Exception as e:
-                    logger.warning(f"Error closing trajectory writer for {rid}: {e}")
-            self.traj_writers.clear()
+        """Close one trajectory writer (by ``run_id``) or all of them."""
+        run_ids = [run_id] if run_id is not None else list(self.traj_writers)
+        for rid in run_ids:
+            writer = self.traj_writers.pop(rid, None)
+            if writer is None:
+                continue
+            try:
+                writer.close()
+                logger.info(f"Closed trajectory writer for run {rid}")
+            except Exception as e:
+                logger.warning(f"Error closing trajectory writer for {rid}: {e}")
 
     def __del__(self):
         """Cleanup: close any open writers."""
