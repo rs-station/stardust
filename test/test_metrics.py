@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 
-from losslab.refinement.metrics import MetricsTracker
+from stardust.refinementlogger.metrics import MetricsTracker
 
 
 def test_metrics_tracker_initialization():

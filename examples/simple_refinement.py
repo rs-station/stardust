@@ -19,7 +19,7 @@ from rocket import utils as rk_utils
 from SFC_Torch import PDBParser
 
 # Import LossLab components
-from losslab import RealSpaceLoss, RefinementConfig, RefinementEngine
+from stardust import RealSpaceLoss, RefinementConfig, RefinementEngine
 
 
 def main():

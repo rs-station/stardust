@@ -6,9 +6,9 @@ import numpy as np
 import torch
 from SFC_Torch.io import PDBParser
 
-from losslab.losses.base import BaseLoss
-from losslab.losses.settings import DEFAULT_TORCH_DEVICE
-from losslab.utils.geometry import (
+from stardust.losslab.base import BaseLoss
+from stardust.losslab.settings import DEFAULT_TORCH_DEVICE
+from stardust.utils.geometry import (
     AlignmentSelection,
     compute_common_indices,
     kabsch_align,

@@ -1,6 +1,6 @@
 # Weights & Biases Setup Guide
 
-How to install and use Weights & Biases (W&B) for experiment tracking with LossLab.
+How to install and use Weights & Biases (W&B) for experiment tracking with Stardust.
 
 ## Installation
 
@@ -24,7 +24,7 @@ pip install wandb
    # Follow prompts to paste your API key from https://wandb.ai/authorize
    ```
 
-3. **Use in LossLab**
+3. **Use in Stardust**
    ```python
    config = RefinementConfig(
        # ... other config ...
@@ -56,7 +56,7 @@ pip install wandb
    os.environ["WANDB_MODE"] = "offline"
    ```
 
-2. **Use in LossLab** (same as above)
+2. **Use in Stardust** (same as above)
    ```python
    config = RefinementConfig(
        use_wandb=True,
@@ -119,7 +119,7 @@ no live frames or animations are logged to W&B.
 
 ## What Gets Logged
 
-When `use_wandb=True`, LossLab automatically logs:
+When `use_wandb=True`, Stardust automatically logs:
 
 1. **Configuration**
    - All refinement parameters
@@ -145,7 +145,7 @@ When `use_wandb=True`, LossLab automatically logs:
 ### Basic Usage
 
 ```python
-from losslab import RefinementConfig, RefinementEngine
+from stardust import RefinementConfig, RefinementEngine
 
 config = RefinementConfig(
     num_iterations=100,
@@ -174,7 +174,7 @@ results = engine.run(
 ### Advanced: Manual Logging
 
 ```python
-from losslab.refinement.wandb_logger import WandbLogger
+from stardust.refinementlogger.wandb_logger import WandbLogger
 
 # Create custom logger
 wandb_logger = WandbLogger(

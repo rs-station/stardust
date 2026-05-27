@@ -6,6 +6,7 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
+  workflow_call:
 
 # Allow only one concurrent run for the same workflow, branch/PR
 concurrency:
