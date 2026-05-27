@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ruff_check:
-    name: Run Ruff Linter and Formatter
+  ruff:
+    name: run ruff linter and formatter
     runs-on: ubuntu-latest
     permissions:
       contents: read
