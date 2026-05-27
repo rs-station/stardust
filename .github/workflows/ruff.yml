@@ -1,5 +1,5 @@
-# .github/workflows/lint.yml
-name: Ruff
+# .github/workflows/ruff.yml
+name: ruff
 
 # Run on pushes to the main branch and on pull requests targeting main
 on:
@@ -10,12 +10,12 @@ on:
 
 # Allow only one concurrent run for the same workflow, branch/PR
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ruff-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ruff_check:
-    name: Run Ruff Linter and Formatter
+  ruff:
+    name: run ruff linter and formatter
     runs-on: ubuntu-latest
     permissions:
       contents: read
