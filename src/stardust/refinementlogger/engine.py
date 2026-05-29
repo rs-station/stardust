@@ -17,7 +17,7 @@ from stardust.refinementlogger.metrics import MetricsTracker
 from stardust.refinementlogger.trajectory import TrajectoryWriter
 from stardust.refinementlogger.wandb_logger import WandbLogger
 from stardust.utils.decorators import gpu_memory_tracked, timed
-from stardust.utils.geometry import kabsch_align
+from stardust.structure.align import kabsch_align
 
 
 class EarlyStopper:

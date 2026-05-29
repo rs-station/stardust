@@ -1,1 +1,1 @@
-"""Structure handling for Stardust (placeholder — implementation pending)."""
+"""Structure handling for Stardust (implementation pending)."""
