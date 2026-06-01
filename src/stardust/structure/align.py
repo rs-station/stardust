@@ -1,13 +1,27 @@
-"""Geometry utilities for coordinate manipulation."""
+"""Sequence alignment and rigid-body superposition for ``Structure`` objects.
+
+Two layers live here:
+
+  * **Structure-level interface** (sketch) — sequence alignment + RMSD that take
+    ``Structure`` objects and return an :class:`Alignment` / RMSD tensor.
+  * **Low-level geometry kernels** (concrete) — weighted Kabsch superposition,
+    RMSD, and rigid-body transforms on raw coordinate arrays/tensors. These are
+    what the Structure-level interface is built on, and are also used directly
+    by the loss and refinement code.
+"""
 
 from __future__ import annotations
 
 import contextlib
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
+
+if TYPE_CHECKING:
+    from stardust.structure.structure import Structure
 
 
 class AlignmentSelection(StrEnum):
@@ -17,6 +31,56 @@ class AlignmentSelection(StrEnum):
     CA = "CA"
     BB = "BB"
 
+
+# --------------------------------------------------------------------------- #
+# Structure-level interface (sketch)
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class Alignment:
+    idx_a: torch.Tensor          # LongTensor of atom indices into structure A
+    idx_b: torch.Tensor          # LongTensor of atom indices into structure B
+    residue_pairs: "list[tuple[str, int, str, int]]"
+    identity: float
+    matched: int
+
+
+def align(
+    sys1: "Structure",
+    sys2: "Structure",
+    *,
+    mode: str = "global",
+    scoring: str = "blosum62",
+    selection: AlignmentSelection = AlignmentSelection.CA,
+) -> Alignment:
+    """Sequence-align two structures and return the matched atom-index maps."""
+    ...
+
+
+def rmsd(
+    sys1: "Structure",
+    sys2: "Structure",
+    *,
+    superpose: bool = True,
+    selection: AlignmentSelection = AlignmentSelection.CA,
+) -> torch.Tensor:
+    """RMSD between two structures, optionally after Kabsch superposition."""
+    ...
+
+
+def aligned_rmsd(
+    sys1: "Structure",
+    sys2: "Structure",
+    *,
+    selection: AlignmentSelection = AlignmentSelection.CA,
+) -> torch.Tensor:
+    """Convenience: sequence-align, slice to matched atoms, then superposed RMSD."""
+    ...
+
+
+# --------------------------------------------------------------------------- #
+# Low-level geometry kernels (concrete)
+# --------------------------------------------------------------------------- #
 
 def _as_numpy(x: Any) -> np.ndarray:
     if isinstance(x, torch.Tensor):
@@ -368,6 +432,13 @@ def compute_common_indices(
 
 
 __all__ = [
+    # interface
+    "Alignment",
+    "AlignmentSelection",
+    "align",
+    "rmsd",
+    "aligned_rmsd",
+    # geometry kernels
     "weighted_kabsch",
     "kabsch_alignment",
     "iterative_kabsch_alignment",
@@ -377,5 +448,4 @@ __all__ = [
     "apply_rigid_body_transform",
     "center_coordinates",
     "compute_common_indices",
-    "AlignmentSelection",
 ]

@@ -5,7 +5,7 @@ from stardust.utils.decorators import (
     timed,
     validate_shapes,
 )
-from stardust.utils.geometry import compute_rmsd, kabsch_align
+from stardust.structure.align import compute_rmsd, kabsch_align
 from stardust.utils.map_utils import create_spherical_mask, normalize_map
 
 __all__ = [

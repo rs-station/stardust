@@ -6,8 +6,11 @@ from abc import ABC, abstractmethod
 from typing import Protocol
 
 import torch
-from SFC_Torch.Fmodel import SFcalculator
+from SFC_Torch.Fmodel import SFcalculator  # TODO
 
+from stardust.structure import (
+    ...
+)
 from stardust.losslab.settings import DEFAULT_TORCH_DEVICE
 
 
@@ -30,7 +33,7 @@ class BaseLoss(ABC):
         self.device = torch.device(device)
 
     @abstractmethod
-    def compute(self, coordinates: torch.Tensor) -> torch.Tensor: ...
+    def compute(self, coordinates: torch.Tensor) -> torch.Tensor: ... # TODO
 
     def __call__(self, coordinates: torch.Tensor) -> torch.Tensor:
         return self.compute(coordinates)

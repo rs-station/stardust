@@ -29,7 +29,6 @@ dependencies = [
     "loguru>=0.7.0",
     "tqdm>=4.65.0",
     "pyyaml>=6.0",
-    "SFcalculator-torch>=0.3.1",
 ]
 
 [project.optional-dependencies]
